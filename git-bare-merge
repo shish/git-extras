@@ -1,0 +1,12 @@
+#!/bin/bash -x
+
+export GIT_DIR=`pwd`
+export GIT_WORK_TREE=`mktemp -d`
+
+cd $GIT_WORK_TREE
+git reset --hard HEAD
+git checkout $1
+git merge -m "Merging $2 into $1" $2 || git reset --hard HEAD
+git checkout master
+cd /
+rm -rf $GIT_WORK_TREE

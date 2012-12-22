@@ -1,0 +1,87 @@
+#!/usr/bin/python
+
+"""
+When run from a git-controlled folder, will print a list of statuses, eg:
+
+branch                           master  develop
+~~~~~~                           ~~~~~~  ~~~~~~~
+mergable                          clean    clean    <-- this branch is fine, but not merged yet
+merged_feature                    clean   merged    <-- this branch is already merged, it can probably be deleted now
+conflict_feature                  clean conflict    <-- merged_feature and conflict_feature both modified the same code
+
+also gives JSON output with --display=json
+"""
+
+import sys
+import argparse
+import json
+import subprocess
+
+
+def system(cmd):
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    return proc.stdout.read().strip()
+
+def lines(cmd, strip=None):
+    return [l.strip(strip) for l in system(cmd).split()]
+
+
+def get_status(branch, root):
+    base = system("git merge-base %s %s" % (root, branch))
+
+    if base == system("git rev-parse %s" % branch):
+        return "merged"
+    elif base == system("git rev-parse %s" % root):
+        return "clean"  # fast-forward
+    else:
+        merge = system("git-merge-tree %s %s %s" % (base, root, branch))
+
+        if "changed in both" in merge:
+            if "<<<<<" in merge:
+                return "conflict"
+            else:
+                return "clean"  # two separate modifications to same file
+        else:
+            return "clean"
+
+
+def main(args):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--display", default="human")
+    parser.add_argument("--branches", default=",".join([l for l in lines("git branch", "* \n") if l]))
+    parser.add_argument("--bases", default="master,develop")
+    args = parser.parse_args(args)
+
+    bases = args.bases.split(",")
+    forks = args.branches.split(",")
+
+    if args.display == "human":
+        print "%-50s" % "branch",
+        for base in bases:
+            print "%8s" % base,
+        print
+
+        print "%-50s" % "~~~~~~",
+        for base in bases:
+            print "%8s" % ("~"*len(base)),
+        print
+
+        for branch in forks:
+            print "%-50s" % branch,
+            for base in bases:
+                print "%8s" % get_status(branch, base),
+            print
+
+    if args.display == "json":
+        stats = {}
+        for branch in forks:
+            if branch in bases:
+                continue
+            stats[branch] = {}
+            for base in bases:
+                stats[branch][base] = get_status(branch, base)
+        print json.dumps(stats, indent=4)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

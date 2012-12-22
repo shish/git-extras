@@ -1,0 +1,8 @@
+#!/bin/bash
+
+export TAG_TARGET="$1"
+export TAG_MSG="$2"
+export NEXT_NUM=`git tag | grep -E "mm[0-9]{5}" |  wc -l`
+export TAG_NAME=`printf "mm%05d" $NEXT_NUM`
+
+git tag $TAG_NAME $TAG_TARGET -m "$TAG_MSG"
