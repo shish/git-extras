@@ -19,8 +19,9 @@ import subprocess
 
 
 def system(cmd):
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-    return proc.stdout.read().strip()
+    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    stdout, stderr = proc.communicate()
+    return stdout
 
 def lines(cmd, strip=None):
     return [l.strip(strip) for l in system(cmd).split()]
