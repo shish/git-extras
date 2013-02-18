@@ -5,4 +5,5 @@ export TAG_MSG="$2"
 export NEXT_NUM=`git tag | grep -E "mm[0-9]{5}" |  wc -l`
 export TAG_NAME=`printf "mm%05d" $NEXT_NUM`
 
+#echo "git tag $TAG_NAME $TAG_TARGET -m \"$TAG_MSG\"" >> /tmp/git-autotag.log
 git tag $TAG_NAME $TAG_TARGET -m "$TAG_MSG"
