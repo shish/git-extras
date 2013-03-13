@@ -21,7 +21,7 @@ import subprocess
 def system(cmd):
     proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     stdout, stderr = proc.communicate()
-    return stdout
+    return stdout.strip()
 
 def lines(cmd, strip=None):
     return [l.strip(strip) for l in system(cmd).split()]
@@ -35,7 +35,7 @@ def get_status(branch, root):
     elif base == system("git rev-parse %s" % root):
         return "clean"  # fast-forward
     else:
-        merge = system("git-merge-tree %s %s %s" % (base, root, branch))
+        merge = system("git merge-tree %s %s %s" % (base, root, branch))
 
         if "changed in both" in merge:
             if "<<<<<" in merge:
