@@ -16,34 +16,58 @@ import sys
 import argparse
 import json
 import subprocess
+from dogpile.cache import make_region
 
 
-def system(cmd):
-    proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    stdout, stderr = proc.communicate()
-    return stdout.strip()
+status_cache = make_region().configure(
+    'dogpile.cache.dbm',
+    arguments={"filename": "/tmp/git-merge-status.cache"}
+#    'dogpile.cache.memcached',
+#    arguments={"url": "localhost:11211"}
+)
+
+
+def system(cmd, cached=False):
+    if cached:
+        stdout = status_cache.get("cmd:" + cmd)
+    if not stdout:
+        proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        stdout, stderr = proc.communicate()
+        stdout = stdout.strip()
+        status_cache.set("cmd:" + cmd, stdout)
+    return stdout
+
 
 def lines(cmd, strip=None):
     return [l.strip(strip) for l in system(cmd).split()]
 
 
 def get_status(branch, root):
-    base = system("git merge-base %s %s" % (root, branch))
+    branch_rev = system("git rev-parse %s" % branch)
+    root_rev = system("git rev-parse %s" % root)
+    base_rev = system("git merge-base %s %s" % (root_rev, branch_rev))
 
-    if base == system("git rev-parse %s" % branch):
+    if base_rev == branch_rev:
         return "merged"
-    elif base == system("git rev-parse %s" % root):
+    elif base_rev == root_rev:
         return "clean"  # fast-forward
     else:
-        merge = system("git merge-tree %s %s %s" % (base, root, branch))
+        cache_key = "merge-base:%s-%s" % (root_rev, branch_rev)
 
-        if "changed in both" in merge:
-            if "<<<<<" in merge:
-                return "conflict"
+        status = status_cache.get(cache_key)
+
+        if not status:
+            merge = system("git merge-tree %s %s %s" % (base_rev, root, branch))
+            if "changed in both" in merge:
+                if "<<<<<" in merge:
+                    status = "conflict"
+                else:
+                    status = "clean"  # two separate modifications to same file
             else:
-                return "clean"  # two separate modifications to same file
-        else:
-            return "clean"
+                status = "clean"
+            status_cache.set(cache_key, status)
+
+        return status
 
 
 def main(args):
