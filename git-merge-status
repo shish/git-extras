@@ -28,6 +28,7 @@ status_cache = make_region().configure(
 
 
 def system(cmd, cached=False):
+    stdout = None
     if cached:
         stdout = status_cache.get("cmd:" + cmd)
     if not stdout:
@@ -43,9 +44,9 @@ def lines(cmd, strip=None):
 
 
 def get_status(branch, root):
-    branch_rev = system("git rev-parse %s" % branch)
-    root_rev = system("git rev-parse %s" % root)
-    base_rev = system("git merge-base %s %s" % (root_rev, branch_rev))
+    branch_rev = system("git rev-parse %s" % branch, cached=True)
+    root_rev = system("git rev-parse %s" % root, cached=True)
+    base_rev = system("git merge-base %s %s" % (root_rev, branch_rev), cached=True)
 
     if base_rev == branch_rev:
         return "merged"
