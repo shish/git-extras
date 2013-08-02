@@ -40,12 +40,24 @@ def system(cmd, cached=False):
 
 
 def lines(cmd, strip=None):
-    return [l.strip(strip) for l in system(cmd).split()]
+    return [l.strip(strip) for l in system(cmd).split("\n")]
+
+
+refs = {}
+
+for line in lines("git show-ref --heads"):
+    hash, ref = line.split()
+    ref = ref.replace("refs/heads/", "")
+    refs[ref] = hash
+
+
+def ref_parse(ref):
+    return refs[ref]
 
 
 def get_status(branch, root):
-    branch_rev = system("git rev-parse %s" % branch, cached=True)
-    root_rev = system("git rev-parse %s" % root, cached=True)
+    branch_rev = ref_parse(branch)
+    root_rev = ref_parse(root)
     base_rev = system("git merge-base %s %s" % (root_rev, branch_rev), cached=True)
 
     if base_rev == branch_rev:
