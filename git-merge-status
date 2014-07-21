@@ -21,7 +21,8 @@ from dogpile.cache import make_region
 
 status_cache = make_region().configure(
     'dogpile.cache.dbm',
-    arguments={"filename": "/tmp/git-merge-status.cache"}
+    arguments={"filename": "/tmp/git-merge-status.cache"},
+    expiration_time=60*60,
 #    'dogpile.cache.memcached',
 #    arguments={"url": "localhost:11211"}
 )
@@ -70,7 +71,7 @@ def get_status(branch, root):
         status = status_cache.get(cache_key)
 
         if not status:
-            merge = system("git merge-tree %s %s %s" % (base_rev, root, branch))
+            merge = system("git merge-tree %s %s %s" % (base_rev, root, branch), cached=False)
             if "changed in both" in merge:
                 if "<<<<<" in merge:
                     status = "conflict"
@@ -117,7 +118,10 @@ def main(args):
                 continue
             stats[branch] = {}
             for base in bases:
-                stats[branch][base] = get_status(branch, base)
+                if base in refs:
+                    stats[branch][base] = get_status(branch, base)
+                else:
+                    stats[branch][base] = "merged"
         print json.dumps(stats, indent=4)
 
 
